@@ -28,9 +28,14 @@ WattWise is a smart energy optimization platform designed to monitor classroom e
 **Backend**
 - Node.js
 - Express.js
+- 
+## 📊 How It Works
 
----
+1. Input classroom data  
+2. Run analysis  
+3. Detect waste  
+4. Calculate efficiency  
+5. Generate recommendations  
+6. Display on dashboard  
 
-## 🔗 API Overview
 
-**Base URL**
