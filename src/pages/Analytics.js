@@ -1,83 +1,172 @@
-import React from 'react';
-import { Doughnut, Bar } from 'react-chartjs-2';
+import React, { useEffect, useState } from "react";
+import { Bar, Doughnut } from "react-chartjs-2";
 import {
-  Chart as ChartJS, ArcElement, Tooltip, Legend,
-  CategoryScale, LinearScale, BarElement
-} from 'chart.js';
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Legend,
+  LinearScale,
+  Tooltip
+} from "chart.js";
+import { getComparison, getRooms, getWasteOverview } from "../api";
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
+ChartJS.register(ArcElement, BarElement, CategoryScale, LinearScale, Tooltip, Legend);
 
-const wasteData = {
-  labels: ['Wasted', 'Saved'],
-  datasets: [{ data: [120, 300], backgroundColor: ['#E24B4A', '#1D9E75'], borderWidth: 0 }]
-};
+function Analytics({ refreshKey }) {
+  const [rooms, setRooms] = useState([]);
+  const [selectedRoom, setSelectedRoom] = useState("101");
+  const [overview, setOverview] = useState({ total_saved: 0, total_wasted: 0, unit: "kWh" });
+  const [comparison, setComparison] = useState({ before_kwh: 0, after_kwh: 0, reduction_percent: 0 });
+  const [error, setError] = useState("");
 
-const compData = {
-  labels: ['Energy (kWh)'],
-  datasets: [
-    { label: 'Before', data: [120], backgroundColor: '#D85A3033', borderColor: '#D85A30', borderWidth: 1.5 },
-    { label: 'After', data: [80], backgroundColor: '#1D9E7533', borderColor: '#1D9E75', borderWidth: 1.5 }
-  ]
-};
+  const loadAnalytics = async () => {
+    setError("");
+    try {
+      const roomData = await getRooms();
+      setRooms(roomData);
 
-const efficiencyData = {
-  labels: ['Room 101', 'Room 102', 'Room 103', 'Room 104'],
-  datasets: [{
-    label: 'Score',
-    data: [72, 88, 45, 91],
-    backgroundColor: ['#BA751733', '#1D9E7533', '#E24B4A33', '#1D9E7533'],
-    borderColor: ['#BA7517', '#1D9E75', '#E24B4A', '#1D9E75'],
-    borderWidth: 1.5
-  }]
-};
+      const roomToUse = roomData.some((room) => room.room_id === selectedRoom)
+        ? selectedRoom
+        : roomData[0]?.room_id || selectedRoom;
 
-const cardStyle = { background: 'white', border: '0.5px solid #e0e0e0', borderRadius: '10px', padding: '14px' };
-const titleStyle = { fontSize: '12px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '14px' };
+      if (roomToUse !== selectedRoom) setSelectedRoom(roomToUse);
 
-function Analytics() {
+      const [wasteOverview, comparisonData] = await Promise.all([
+        getWasteOverview(),
+        getComparison(roomToUse, "today")
+      ]);
+
+      setOverview(wasteOverview || { total_saved: 0, total_wasted: 0, unit: "kWh" });
+      setComparison(comparisonData || { before_kwh: 0, after_kwh: 0, reduction_percent: 0 });
+    } catch (err) {
+      setError(err.message || "Unable to load analytics");
+    }
+  };
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [selectedRoom, refreshKey]);
+
+  const doughnutData = {
+    labels: ["Wasted", "Saved"],
+    datasets: [
+      {
+        data: [overview.total_wasted || 0, overview.total_saved || 0],
+        backgroundColor: ["#E24B4A", "#1D9E75"],
+        borderWidth: 0
+      }
+    ]
+  };
+
+  const beforeAfterData = {
+    labels: [comparison.period || "today"],
+    datasets: [
+      {
+        label: "Before WattWise",
+        data: [comparison.before_kwh || 0],
+        backgroundColor: "rgba(216, 90, 48, 0.18)",
+        borderColor: "#D85A30",
+        borderWidth: 1.5
+      },
+      {
+        label: "After WattWise",
+        data: [comparison.after_kwh || 0],
+        backgroundColor: "rgba(29, 158, 117, 0.18)",
+        borderColor: "#1D9E75",
+        borderWidth: 1.5
+      }
+    ]
+  };
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Syne, sans-serif' }}>
-      <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '20px' }}>Analytics</div>
+    <div style={styles.page}>
+      <div style={styles.topBar}>
+        <h2 style={styles.title}>Analytics</h2>
+        <select value={selectedRoom} onChange={(e) => setSelectedRoom(e.target.value)} style={styles.select}>
+          {rooms.length === 0 ? <option value="101">Room 101</option> : rooms.map((room) => (
+            <option key={room.room_id} value={room.room_id}>Room {room.room_id}</option>
+          ))}
+        </select>
+      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-        
-        {/* Waste Overview */}
-        <div style={cardStyle}>
-          <div style={titleStyle}>Waste Overview</div>
-          <div style={{ height: '160px' }}>
-            <Doughnut data={wasteData} options={{ responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#E24B4A' }}>120</div>
-              <div style={{ fontSize: '10px', color: '#888', fontFamily: 'monospace' }}>kWh wasted</div>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#1D9E75' }}>300</div>
-              <div style={{ fontSize: '10px', color: '#888', fontFamily: 'monospace' }}>kWh saved</div>
-            </div>
+      {error && <div style={styles.errorBox}>{error}</div>}
+
+      <div style={styles.cardsGrid}>
+        <Metric title="TOTAL SAVED TODAY" value={overview.total_saved || 0} sub="kWh" color="#1D9E75" />
+        <Metric title="TOTAL WASTED TODAY" value={overview.total_wasted || 0} sub="kWh" color="#E24B4A" />
+        <Metric title="BEFORE WATTWISE" value={comparison.before_kwh || 0} sub="kWh · live timetable" color="#BA7517" />
+        <Metric title="AFTER WATTWISE" value={comparison.after_kwh || 0} sub={`kWh · ${comparison.reduction_percent || 0}% reduction`} color="#1D725B" />
+      </div>
+
+      <div style={styles.liveStatus}>
+        <strong>Live timetable check:</strong>{" "}
+        {comparison.is_class_live_now ? "Class is currently running" : "No class is currently scheduled"}
+        {comparison.current_class ? ` · ${comparison.current_class.label} (${comparison.current_class.start_time}-${comparison.current_class.end_time})` : ""}
+        {comparison.current_time ? ` · ${comparison.current_day} ${comparison.current_time}` : ""}
+      </div>
+
+      <div style={styles.graphGrid}>
+        <div style={styles.graphCard}>
+          <h3 style={styles.graphTitle}>WASTE VS SAVED TODAY</h3>
+          <div style={styles.chartBox}>
+            <Doughnut
+              data={doughnutData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "65%",
+                plugins: { legend: { position: "bottom" } }
+              }}
+            />
           </div>
         </div>
 
-        {/* Before vs After */}
-        <div style={cardStyle}>
-          <div style={titleStyle}>Before vs After</div>
-          <div style={{ height: '160px' }}>
-            <Bar data={compData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }, scales: { y: { min: 0 } } }} />
+        <div style={styles.graphCard}>
+          <h3 style={styles.graphTitle}>BEFORE VS AFTER · ROOM {selectedRoom}</h3>
+          <div style={styles.chartBox}>
+            <Bar
+              data={beforeAfterData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { position: "bottom" } }
+              }}
+            />
           </div>
         </div>
-
-        {/* Room Efficiency */}
-        <div style={cardStyle}>
-          <div style={titleStyle}>Room Efficiency</div>
-          <div style={{ height: '160px' }}>
-            <Bar data={efficiencyData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }} />
-          </div>
-        </div>
-
       </div>
     </div>
   );
 }
+
+function Metric({ title, value, sub, color }) {
+  return (
+    <div style={{ ...styles.metricCard, borderTop: `4px solid ${color}` }}>
+      <div style={styles.metricTitle}>{title}</div>
+      <div style={styles.metricValue}>{value}</div>
+      <div style={styles.metricSub}>{sub}</div>
+    </div>
+  );
+}
+
+const styles = {
+  page: { padding: "40px", fontFamily: "Syne, sans-serif" },
+  topBar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px" },
+  title: { margin: 0, fontSize: "20px" },
+  select: { padding: "10px 14px", borderRadius: "8px", border: "1px solid #eee", background: "#fff" },
+  cardsGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" },
+  metricCard: { background: "#fff", borderRadius: "12px", padding: "22px", border: "1px solid #eee" },
+  metricTitle: { color: "#888", fontSize: "11px", fontWeight: 800, letterSpacing: "1px", marginBottom: "16px" },
+  metricValue: { fontSize: "32px", fontWeight: 900 },
+  metricSub: { fontSize: "12px", color: "#777", marginTop: "4px" },
+  liveStatus: { background: "#E8F0FB", color: "#234", borderRadius: "10px", padding: "12px 16px", marginBottom: "20px", fontSize: "13px" },
+  graphGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" },
+  graphCard: { background: "#fff", borderRadius: "14px", padding: "24px", border: "1px solid #eee", minHeight: "330px" },
+  graphTitle: { margin: "0 0 20px", fontSize: "12px", color: "#888", letterSpacing: "1px" },
+  chartBox: { height: "260px" },
+  errorBox: { background: "#FDEBEC", color: "#7A1E25", padding: "10px", borderRadius: "8px", marginBottom: "12px" }
+};
 
 export default Analytics;
