@@ -1,0 +1,26 @@
+## 📌 Progress Report
+
+- **Checkpoint 1: Ideation & System Design**
+  - Finalized the problem statement and overall system architecture  
+  - Defined core modules including decision engine, simulation layer, and UI components  
+  - Designed a detailed API contract specifying request/response schemas for seamless frontend–backend interaction  
+
+- **Checkpoint 2: Frontend Development**
+  - Implemented the frontend using React with component-based architecture  
+  - Built key interfaces including dashboard, timetable input, and analytics views  
+  - Backend development initiated in parallel with API structure alignment  
+
+- **Checkpoint 3: Backend Completion (Pre-Integration)**
+  - Developed RESTful APIs using Node.js and Express  
+  - Implemented core decision logic for energy analysis and recommendation generation  
+  - Ensured backend endpoints adhered to the predefined API contract  
+
+- **Checkpoint 4: Integration**
+  - Integrated frontend with backend APIs  
+  - Established end-to-end data flow between UI and decision engine  
+  - Performed validation and debugging to ensure consistent data handling and correct system behavior  
+
+- **Checkpoint 5: Enhancements & Optimization**
+  - Added additional features and extended functionality  
+  - Refined UI/UX for improved clarity and usability  
+  - Optimized system for stability, responsiveness, and demo readiness  
